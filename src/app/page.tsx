@@ -112,7 +112,7 @@ export default function BizFindPage() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader>
-          <CardTitle className="text-3xl font-headline text-center">BizFind</CardTitle>
+          <CardTitle className="text-3xl font-headline text-center">Encuentra tus clientes</CardTitle>
           <CardDescription className="text-center">
             Enter business details to find what you're looking for.
           </CardDescription>
