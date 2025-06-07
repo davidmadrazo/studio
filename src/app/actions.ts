@@ -46,9 +46,9 @@ export async function submitBizFindForm(
   const data = validatedFields.data;
 
   const payload = {
-    "Tipo o nombre de negocio": data.businessType,
+    "tipo_negocio": data.businessType,
     "localizacion": data.location,
-    "Numero de resultados": data.numResults,
+    "resultados": data.numResults,
   };
 
   try {
@@ -93,3 +93,4 @@ export async function submitBizFindForm(
     };
   }
 }
+
