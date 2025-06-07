@@ -1,10 +1,9 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,9 +23,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { submitBizFindForm, type FormState } from "./actions";
 import { Loader2 } from "lucide-react";
 
+// Validación con Zod
 const formSchema = z.object({
   businessType: z.string().min(1, "Business type is required."),
   location: z.string().min(1, "Location is required."),
@@ -40,13 +39,6 @@ type FormData = z.infer<typeof formSchema>;
 
 export default function EncuentraClientesPage() {
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const [state, formAction] = React.useActionState<FormState | undefined, FormData>(
-    // @ts-ignore
-    submitBizFindForm,
-    undefined
-  );
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -55,55 +47,37 @@ export default function EncuentraClientesPage() {
       location: "",
       numResults: 1,
     },
-    errors: state?.errors ? {
-      businessType: state.errors.businessType ? { type: 'server', message: state.errors.businessType.join(', ') } : undefined,
-      location: state.errors.location ? { type: 'server', message: state.errors.location.join(', ') } : undefined,
-      numResults: state.errors.numResults ? { type: 'server', message: state.errors.numResults.join(', ') } : undefined,
-      root: state.errors._form ? { serverError: { type: 'server', message: state.errors._form.join(', ') } } : undefined,
-    } : undefined,
   });
 
-  useEffect(() => {
-    if (state?.success === true) {
-      toast({
-        title: "Success!",
-        description: state.message,
-      });
-      form.reset(); 
-    } else if (state?.success === false && state.message) {
-      if (state.errors?._form) {
-         toast({
-          variant: "destructive",
-          title: "Error",
-          description: state.message,
-        });
-      } else if (!state.errors?.businessType && !state.errors?.location && !state.errors?.numResults) {
-         toast({
-          variant: "destructive",
-          title: "Error",
-          description: state.message,
-        });
-      }
-    }
-  }, [state, toast, form]);
-  
-  useEffect(() => {
-    if (state?.errors) {
-      if (state.errors.businessType) {
-        form.setError("businessType", { type: "server", message: state.errors.businessType.join(', ') });
-      }
-      if (state.errors.location) {
-        form.setError("location", { type: "server", message: state.errors.location.join(', ') });
-      }
-      if (state.errors.numResults) {
-        form.setError("numResults", { type: "server", message: state.errors.numResults.join(', ') });
-      }
-      if (state.errors._form) {
-        form.setError("root.serverError", { type: "server", message: state.errors._form.join(', ') });
-      }
-    }
-  }, [state?.errors, form]);
+  // 🔁 Enviar datos al Webhook de n8n
+  const handleSubmit = async (data: FormData) => {
+    const payload = {
+      tipo_negocio: data.businessType,
+      localizacion: data.location,
+      resultados: data.numResults,
+    };
 
+    try {
+      const res = await fetch("https://webhookn8n.profimaxia.com/webhook/ae226503-4cbf-418e-98fd-d864e2ee388c", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Error en la solicitud");
+      toast({
+        title: "✅ Solicitud enviada correctamente",
+      });
+      form.reset();
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "❌ Error",
+        description: "No se pudo enviar la solicitud",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6">
@@ -111,25 +85,20 @@ export default function EncuentraClientesPage() {
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-center">Encuentra tus clientes</CardTitle>
           <CardDescription className="text-center">
-            Enter business details to find what you're looking for.
+            Introduce los datos del negocio que quieres buscar.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form
-              ref={formRef}
-              action={formAction}
-              onSubmit={form.handleSubmit(() => formRef.current?.requestSubmit())}
-              className="space-y-6"
-            >
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="businessType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Business Type</FormLabel>
+                    <FormLabel>Tipo de negocio</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Restaurant, Cafe, Bookstore" {...field} />
+                      <Input placeholder="Ej: pastelería, restaurante..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -140,9 +109,9 @@ export default function EncuentraClientesPage() {
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location</FormLabel>
+                    <FormLabel>Localización</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., New York, London, Tokyo" {...field} />
+                      <Input placeholder="Ej: Madrid, Valencia..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -153,31 +122,28 @@ export default function EncuentraClientesPage() {
                 name="numResults"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Number of Results</FormLabel>
+                    <FormLabel>Número de resultados</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 10" {...field} />
+                      <Input type="number" placeholder="Ej: 10" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent"
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
+                    Enviando...
                   </>
                 ) : (
-                  "Search"
+                  "Buscar"
                 )}
               </Button>
-              {form.formState.errors.root?.serverError && (
-                <p className="text-sm font-medium text-destructive">{form.formState.errors.root.serverError.message}</p>
-              )}
             </form>
           </Form>
         </CardContent>
@@ -185,3 +151,4 @@ export default function EncuentraClientesPage() {
     </main>
   );
 }
+
