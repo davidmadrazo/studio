@@ -1,10 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFormState } from "react-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,11 +37,11 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-export default function BizFindPage() {
+export default function EncuentraClientesPage() {
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [state, formAction] = useFormState<FormState | undefined, FormData>(
+  const [state, formAction] = React.useActionState<FormState | undefined, FormData>(
     // @ts-ignore
     submitBizFindForm,
     undefined
@@ -55,6 +54,13 @@ export default function BizFindPage() {
       location: "",
       numResults: 1,
     },
+    // Pass the state to react-hook-form to show errors
+    errors: state?.errors ? {
+      businessType: state.errors.businessType ? { type: 'server', message: state.errors.businessType.join(', ') } : undefined,
+      location: state.errors.location ? { type: 'server', message: state.errors.location.join(', ') } : undefined,
+      numResults: state.errors.numResults ? { type: 'server', message: state.errors.numResults.join(', ') } : undefined,
+      root: state.errors._form ? { serverError: { type: 'server', message: state.errors._form.join(', ') } } : undefined,
+    } : undefined,
   });
 
   useEffect(() => {
@@ -65,48 +71,43 @@ export default function BizFindPage() {
       });
       form.reset(); // Reset form fields on success
     } else if (state?.success === false && state.message) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: state.message,
-      });
-       // Set form errors if available from server action
-       if (state.errors) {
-        if (state.errors.businessType) {
-          form.setError("businessType", { type: "server", message: state.errors.businessType.join(', ') });
-        }
-        if (state.errors.location) {
-          form.setError("location", { type: "server", message: state.errors.location.join(', ') });
-        }
-        if (state.errors.numResults) {
-          form.setError("numResults", { type: "server", message: state.errors.numResults.join(', ') });
-        }
+      // Errors are now handled by RHF via the `errors` prop in useForm,
+      // but we can still show a generic toast for the _form error if desired or for general failure messages
+      if (state.errors?._form) {
+         toast({
+          variant: "destructive",
+          title: "Error",
+          description: state.message,
+        });
+      } else if (!state.errors?.businessType && !state.errors?.location && !state.errors?.numResults) {
+        // If there are no specific field errors, show a general error toast
+         toast({
+          variant: "destructive",
+          title: "Error",
+          description: state.message,
+        });
       }
     }
   }, [state, toast, form]);
+  
+  // Update RHF errors when server state changes
+  useEffect(() => {
+    if (state?.errors) {
+      if (state.errors.businessType) {
+        form.setError("businessType", { type: "server", message: state.errors.businessType.join(', ') });
+      }
+      if (state.errors.location) {
+        form.setError("location", { type: "server", message: state.errors.location.join(', ') });
+      }
+      if (state.errors.numResults) {
+        form.setError("numResults", { type: "server", message: state.errors.numResults.join(', ') });
+      }
+      if (state.errors._form) {
+        form.setError("root.serverError", { type: "server", message: state.errors._form.join(', ') });
+      }
+    }
+  }, [state?.errors, form]);
 
-  const onSubmit = (data: FormData) => {
-    // FormData will be automatically passed to formAction
-    // No need to manually construct it here if using useFormState correctly
-    // The formAction will receive it.
-    // This function might just trigger the form submission via formRef.current.requestSubmit()
-    // or simply let the <form action={formAction}> handle it.
-    // For react-hook-form integration with useFormState, we typically call formAction with form values.
-    // However, since formAction is passed to <form action={formAction}>, RHF's handleSubmit will pass data to its own handler, not directly to formAction.
-    // We need to bridge this.
-    // The simplest bridge when using `formAction` on `<form>` is to let the native form submission trigger the server action.
-    // `handleSubmit` from RHF is for client-side validation before calling a manual submission function.
-    // Let's trigger the formAction manually with validated data, or ensure the form element calls it.
-    
-    // When using <form action={formAction}>, RHF's handleSubmit is not strictly needed to *trigger* the action,
-    // but it's good for client-side validation before the action is invoked.
-    // The `form.handleSubmit` should wrap a function that then creates FormData and calls the action.
-    // Or, as `formAction` is already on the `form` element, this `onSubmit` is okay.
-    // RHF `handleSubmit` will perform client-side validation first.
-    // If valid, it will call this function. Here, we ensure the formAction is called via the form.
-    // The form data is passed via the native form submission mechanism to the server action.
-    // No need to call formAction(data) directly.
-  };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6">
@@ -178,8 +179,8 @@ export default function BizFindPage() {
                   "Search"
                 )}
               </Button>
-              {state?.errors?._form && (
-                <p className="text-sm font-medium text-destructive">{state.errors._form.join(', ')}</p>
+              {form.formState.errors.root?.serverError && (
+                <p className="text-sm font-medium text-destructive">{form.formState.errors.root.serverError.message}</p>
               )}
             </form>
           </Form>
