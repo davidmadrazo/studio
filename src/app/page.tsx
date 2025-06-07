@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,7 +55,6 @@ export default function EncuentraClientesPage() {
       location: "",
       numResults: 1,
     },
-    // Pass the state to react-hook-form to show errors
     errors: state?.errors ? {
       businessType: state.errors.businessType ? { type: 'server', message: state.errors.businessType.join(', ') } : undefined,
       location: state.errors.location ? { type: 'server', message: state.errors.location.join(', ') } : undefined,
@@ -69,10 +69,8 @@ export default function EncuentraClientesPage() {
         title: "Success!",
         description: state.message,
       });
-      form.reset(); // Reset form fields on success
+      form.reset(); 
     } else if (state?.success === false && state.message) {
-      // Errors are now handled by RHF via the `errors` prop in useForm,
-      // but we can still show a generic toast for the _form error if desired or for general failure messages
       if (state.errors?._form) {
          toast({
           variant: "destructive",
@@ -80,7 +78,6 @@ export default function EncuentraClientesPage() {
           description: state.message,
         });
       } else if (!state.errors?.businessType && !state.errors?.location && !state.errors?.numResults) {
-        // If there are no specific field errors, show a general error toast
          toast({
           variant: "destructive",
           title: "Error",
@@ -90,7 +87,6 @@ export default function EncuentraClientesPage() {
     }
   }, [state, toast, form]);
   
-  // Update RHF errors when server state changes
   useEffect(() => {
     if (state?.errors) {
       if (state.errors.businessType) {
@@ -123,7 +119,7 @@ export default function EncuentraClientesPage() {
             <form
               ref={formRef}
               action={formAction}
-              onSubmit={form.handleSubmit(() => formRef.current?.requestSubmit())} // client validation then submit
+              onSubmit={form.handleSubmit(() => formRef.current?.requestSubmit())}
               className="space-y-6"
             >
               <FormField
